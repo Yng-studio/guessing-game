@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cyber Guess</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #050510;
+  color: #00ffe5;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* BOOT SCREEN */
+#boot {
+  position: fixed;
+  inset: 0;
+  background: black;
+  padding: 20px;
+  font-family: monospace;
+  color: #00ffe5;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.boot-line {
+  opacity: 0;
+  animation: appear 0.4s forwards;
+}
+
+@keyframes appear {
+  to { opacity: 1; }
+}
+
+/* GAME */
+.game {
+  width: 92%;
+  max-width: 380px;
+  background: rgba(0,255,229,0.05);
+  border: 1px solid rgba(0,255,229,0.2);
+  box-shadow: 0 0 25px rgba(0,255,229,0.2);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+
+  opacity: 0;
+  transition: 0.8s ease;
+}
+
+h1 {
+  font-size: 22px;
+  text-shadow: 0 0 10px #00ffe5;
+}
+
+p {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  font-size: 18px;
+  margin-top: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,255,229,0.3);
+  outline: none;
+  text-align: center;
+  background: rgba(0,0,0,0.4);
+  color: #00ffe5;
+}
+
+button {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(90deg, #00ffe5, #0077ff);
+  color: black;
+  font-weight: bold;
+}
+
+#msg {
+  margin-top: 10px;
+  min-height: 20px;
+}
+
+.stats {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.board {
+  margin-top: 15px;
+  text-align: left;
+  font-size: 13px;
+}
+
+/* WIN EFFECTS */
+.flash {
+  position: fixed;
+  inset: 0;
+  background: white;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 999;
+}
+
+.glitch {
+  animation: glitch 0.4s infinite;
+  text-shadow: 2px 0 red, -2px 0 blue;
+}
+
+@keyframes glitch {
+  0% { transform: translate(0); }
+  25% { transform: translate(-2px, 2px); }
+  50% { transform: translate(2px, -2px); }
+  75% { transform: translate(-1px, 1px); }
+  100% { transform: translate(0); }
+}
+
+.pulse {
+  animation: pulse 0.6s ease;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* SCREEN GLITCH */
+.glitch-burst {
+  animation: screenGlitch 0.6s ease-in-out;
+}
+
+@keyframes screenGlitch {
+  0% { transform: translate(0,0) skew(0deg); filter: none; }
+  20% { transform: translate(5px,-3px) skew(2deg); }
+  40% { transform: translate(-5px,3px) skew(-2deg); filter: hue-rotate(90deg); }
+  60% { transform: translate(3px,-2px); }
+  80% { transform: translate(-3px,2px); }
+  100% { transform: translate(0,0); filter: none; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- BOOT SEQUENCE -->
+<div id="boot"></div>
+
+<div class="flash" id="flash"></div>
+
+<div class="game">
+
+<h1>CYBER GUESS</h1>
+<p>System Active</p>
+
+<p>Range: <span id="range">1 - 10</span></p>
+
+<input id="guess" type="number" placeholder="Enter guess">
+
+<button onclick="checkGuess()">GUESS</button>
+<button onclick="restartGame()">RESTART</button>
+
+<div id="msg"></div>
+
+<div class="stats">
+Level: <span id="level">1</span> |
+Score: <span id="score">0</span> |
+Attempts: <span id="attempts">3</span>
+</div>
+
+<hr style="border:0;border-top:1px solid rgba(0,255,229,0.2);">
+
+<div class="board">
+<h3>🏆 Leaderboard</h3>
+<div id="board"></div>
+</div>
+
+</div>
+
+<script>
+
+/* ---------------- BOOT SEQUENCE ---------------- */
+
+const bootLines = [
+  "Booting CYBER SYSTEM...",
+  "Loading neural interface...",
+  "Decrypting game engine...",
+  "Initializing guess protocol...",
+  "Syncing leaderboard...",
+  "System stable ✔",
+  "WELCOME USER"
+];
+
+let boot = document.getElementById("boot");
+
+function runBoot(){
+  bootLines.forEach((line, i) => {
+    setTimeout(() => {
+      let div = document.createElement("div");
+      div.className = "boot-line";
+      div.innerText = line;
+      boot.appendChild(div);
+
+      if(i === bootLines.length - 1){
+        setTimeout(() => {
+          boot.style.opacity = "0";
+          setTimeout(() => boot.remove(), 800);
+          document.querySelector(".game").style.opacity = "1";
+        }, 800);
+      }
+
+    }, i * 600);
+  });
+}
+
+/* ---------------- GAME ---------------- */
+
+let level = 1;
+let score = 0;
+let attempts = 3;
+let max = 10;
+let secret = randomNumber();
+
+function randomNumber(){
+  return Math.floor(Math.random() * max) + 1;
+}
+
+function updateUI(){
+  document.getElementById("range").innerText = "1 - " + max;
+  document.getElementById("level").innerText = level;
+  document.getElementById("score").innerText = score;
+  document.getElementById("attempts").innerText = attempts;
+}
+
+function triggerGlitch(){
+  document.querySelector(".game").classList.add("glitch-burst");
+  setTimeout(() => {
+    document.querySelector(".game").classList.remove("glitch-burst");
+  }, 600);
+}
+
+function checkGuess(){
+  let g = Number(document.getElementById("guess").value);
+  let msg = document.getElementById("msg");
+  let flash = document.getElementById("flash");
+
+  if(!g){
+    msg.innerText = "Enter a number";
+    return;
+  }
+
+  if(g === secret){
+    score += 10;
+
+    msg.innerText = "YOU WIN 🚀";
+    msg.classList.add("glitch");
+
+    document.querySelector(".game").classList.add("pulse");
+
+    flash.style.opacity = "0.9";
+    setTimeout(() => flash.style.opacity = "0", 150);
+
+    triggerGlitch();
+
+    setTimeout(() => {
+      msg.classList.remove("glitch");
+      document.querySelector(".game").classList.remove("pulse");
+      nextLevel();
+    }, 800);
+
+  } else {
+    attempts--;
+
+    msg.innerText = g > secret ? "Too high 📈" : "Too low 📉";
+
+    if(attempts <= 0){
+      msg.innerText = "Game Over 💀 The number was " + secret;
+      saveScore();
+      setTimeout(restartGame, 2000);
+    }
+  }
+
+  updateUI();
+}
+
+function nextLevel(){
+  level++;
+
+  if(level === 2){
+    max = 20;
+    attempts = 4;
+  } else if(level === 3){
+    max = 50;
+    attempts = 5;
+  } else if(level === 4){
+    max = 100;
+    attempts = 6;
+  } else {
+    document.getElementById("msg").innerText = "SYSTEM COMPLETE 🏆";
+    saveScore();
+    return;
+  }
+
+  secret = randomNumber();
+  document.getElementById("guess").value = "";
+  updateUI();
+}
+
+function restartGame(){
+  level = 1;
+  score = 0;
+  max = 10;
+  attempts = 3;
+  secret = randomNumber();
+  document.getElementById("guess").value = "";
+  document.getElementById("msg").innerText = "";
+  updateUI();
+}
+
+function saveScore(){
+  let data = JSON.parse(localStorage.getItem("cyber_scores") || "[]");
+
+  data.push({
+    score,
+    time: new Date().toLocaleTimeString()
+  });
+
+  localStorage.setItem("cyber_scores", JSON.stringify(data));
+  updateBoard();
+}
+
+function updateBoard(){
+  let data = JSON.parse(localStorage.getItem("cyber_scores") || "[]");
+  data = data.slice(-5).reverse();
+
+  document.getElementById("board").innerHTML =
+    data.map(d => `⭐ ${d.score} pts - ${d.time}`).join("<br>");
+}
+
+/* START */
+runBoot();
+updateUI();
+updateBoard();
+
+</script>
+
+</body>
+</html>
